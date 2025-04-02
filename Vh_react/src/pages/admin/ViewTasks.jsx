@@ -4,15 +4,19 @@ import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { useAuth } from "../../context/AuthContext";
 import Sidebar from "./Sidebar";
+import Task from "./Task";
 
 function ViewTasks({tasks1,searchQuery}) {
     const { eventId } = useAuth();
     const [tasks, setTasks] = useState([]);
     const [backupTasks, setBackupTasks] = useState([]);
+    const[status,setStatus] = useState("")
     // const [searchQuery, setSearchQuery] = useState("");
     const [filterPriority, setFilterPriority] = useState("all");
     const [filterStatus, setFilterStatus] = useState("all");
     const navigate = useNavigate();
+
+    
 
     useEffect(() => {
         const fetchTasks = async () => {
@@ -59,6 +63,10 @@ function ViewTasks({tasks1,searchQuery}) {
         setTasks(filteredTasks);
     }, [searchQuery, filterPriority, filterStatus]);
 
+
+
+    
+
     return (
         <>
             
@@ -76,12 +84,7 @@ function ViewTasks({tasks1,searchQuery}) {
                         <tbody>
                             {Array.isArray(tasks) && tasks.length > 0 ? (
                                 tasks.map((task) => (
-                                    <tr key={task.T_ID} className="border-b border-gray-700">
-                                        <td className="p-2">{task.title}</td>
-                                        <td className="p-2">{task.description}</td>
-                                        <td className="p-2">{task.priority}</td>
-                                        <td className='px-5'><input type="checkbox"/></td>
-                                    </tr>
+                                    <Task id={task.T_ID} title={task.title} description={task.description} priority={task.priority} status1={task.status}/>
                                 ))
                             ) : (
                                 <tr>
