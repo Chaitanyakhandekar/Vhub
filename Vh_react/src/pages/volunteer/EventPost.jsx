@@ -82,7 +82,7 @@ function EventPost({ event, ename, description, requiredVolunteers, totVolunteer
     };
 
     return (
-        <div className="bg-[#1E293B] bg-opacity-90 backdrop-blur-md p-6 rounded-2xl shadow-lg border border-gray-600 transition-transform hover:scale-[1.02] hover:border-blue-400 duration-300">
+        <div className="bg-[#1E293B]  bg-opacity-90 backdrop-blur-md p-6 rounded-2xl shadow-lg border border-gray-600 transition-transform hover:scale-[1.02] hover:border-blue-400 duration-300">
             {/* Event Image */}
             <div className="relative">
                 <img

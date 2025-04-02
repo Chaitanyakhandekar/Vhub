@@ -27,7 +27,7 @@ const ContactUs = () => {
     
 
     return (
-        <div className="flex min-h-screen bg-[#1a202c] text-white">
+        <div className="flex  h-[80vh] bg-[#1a202c] text-white overflow-auto">
             
             <div className="flex-1 p-8 flex flex-col items-center">
                 <h1 className="text-4xl font-bold text-green-400 mb-6">Contact Us</h1>

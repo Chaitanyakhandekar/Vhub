@@ -72,9 +72,9 @@ function MyEvents() {
     }
 
     return (
-        <div className="h-full w-full p-3">
-            <nav className="bg-[#2d3748] p-4 rounded-lg shadow-md flex items-center h-[10%] justify-between">
-                <div className="flex items-center bg-[#1a202c] h-full px-4 py-2 rounded-lg w-[40%]">
+        <div className="h-[90vh] w-full p-3 overflow-auto">
+            <nav className="bg-blur-400 bg-[#1A202C]  h-[8%] pb-5 w-[90%]   rounded-lg shadow-md fixed z-10   top-[2%] flex items-center justify-around mb-6">
+                <div className="flex items-center bg-[#1a202c] h-full border-2  border-gray-400  px-4 py-2 rounded-lg w-[40%]">
                     <FaSearch className="text-gray-400 mr-2" />
                     <input 
                         type="text" 
@@ -83,21 +83,21 @@ function MyEvents() {
                         onChange={(e) => setSearchTerm(e.target.value)}
                     />
                 </div>
-                <div className="flex items-center bg-[#1a202c] px-4 py-2 rounded-lg">
+                <div className="flex items-center bg-[#1a202c] px-4 py-2 rounded-lg border-2 border-gray-400">
                     <FaFilter className="text-gray-400 mr-2" />
                     <select 
                         className="bg-transparent focus:outline-none"
                         onChange={(e) => setFilter(e.target.value)}
                     >
-                        <option value="All">All My Events</option>
-                        <option value="Upcoming">Upcoming</option>
-                        <option value="Ongoing">Ongoing</option>
-                        <option value="Completed">Completed</option>
+                        <option className="bg-[#1A202C]" value="All">All My Events</option>
+                        <option className="bg-[#1A202C]" value="Upcoming">Upcoming</option>
+                        <option className="bg-[#1A202C]" value="Ongoing">Ongoing</option>
+                        <option className="bg-[#1A202C]" value="Completed">Completed</option>
                     </select>
                 </div>
                 <div className="relative">
                     <FaBell 
-                        className="text-white text-2xl cursor-pointer hover:text-yellow-400" 
+                        className="text-green-400 text-2xl cursor-pointer hover:text-yellow-400" 
                         onClick={() => setShowNotifications(!showNotifications)}
                     />
                     {notifications.length > 0 && (

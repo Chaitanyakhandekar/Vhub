@@ -31,7 +31,7 @@ const userRole = localStorage.getItem("userRole") || "Volunteer";
 
 function App() {
   return (
-    <AuthProvider>
+    <AuthProvider className="font-poppins">
       <Routes>
         {/* Public Routes */}
         <Route path="/" element={<Home />} />

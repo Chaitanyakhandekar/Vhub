@@ -58,9 +58,9 @@ const teamMembers = [
 
 const AboutUs = () => {
     return (
-        <div className="flex bg-[#1a202c] text-white w-full min-h-screen">
+        <div className="flex bg-[#1a202c] text-white w-full h-[90vh] overflow-auto">
             
-            <div className="flex-1 p-8 flex flex-col items-center relative min-h-screen">
+            <div className="flex-1  flex flex-col items-center relative min-h-screen h-[20%]">
                 <div className="text-center flex flex-col items-center">
                     <img loading="lazy" src={teamLogo} alt="Logo" className="w-40 mb-6 rounded-lg shadow-xl invert" />
                     <TypeAnimation
@@ -113,7 +113,7 @@ const AboutUs = () => {
                     </div>
                 </div>
 
-                <div className="mt-6 bg-[#2d3748] p-6 rounded-lg shadow-lg w-full">
+                {/* <div className="mt-6 bg-[#2d3748] p-6 rounded-lg shadow-lg w-full">
                     <h2 className="text-2xl font-bold text-purple-400 flex items-center">
                         <FaCode className="mr-3" /> Featured Projects
                     </h2>
@@ -121,7 +121,7 @@ const AboutUs = () => {
                         <li className="text-green-400 font-bold">QuickMentor</li>
                         <li className="text-blue-400 font-bold">VHub</li>
                     </ul>
-                </div>
+                </div> */}
             </div>
         </div>
     );

@@ -1,0 +1,24 @@
+/* Apply to all scrollable elements */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  
+  /* Track (background) */
+  ::-webkit-scrollbar-track {
+    background: #1a202c; /* Dark Gray */
+    border-radius: 10px;
+  }
+  
+  /* Thumb (scroll handle) */
+  ::-webkit-scrollbar-thumb {
+    background: #4a5568; /* Soft Gray */
+    border-radius: 10px;
+    transition: background 0.3s ease;
+  }
+  
+  /* Thumb on hover */
+  ::-webkit-scrollbar-thumb:hover {
+    background: #718096; /* Lighter Gray */
+  }
+  

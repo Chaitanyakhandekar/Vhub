@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { FaBars, FaHome, FaCalendarCheck, FaClipboardList, FaUsers, FaInfoCircle, FaEnvelope, FaUser, FaSignOutAlt } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
@@ -17,11 +17,12 @@ function Home() {
     const navigate = useNavigate();
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [activePage, setActivePage] = useState("home");
+  
 
     return (
-        <div className="w-full min-h-screen flex bg-[#1a202c] text-white">
+        <div className="w-full min-h-screen h-[100vh] flex bg-[#1a202c] text-white font-poppins">
             {/* Sidebar */}
-            <div className={`min-h-screen bg-[#111827] flex flex-col p-4 shadow-lg transition-all ${isCollapsed ? "w-20" : "w-64"}`}>
+            <div className={`min-h-screen bg-[#111827]  max-h-[100vh] flex flex-col p-4 shadow-lg transition-all ${isCollapsed ? "w-20" : "w-64"}`}>
                 <button className="mb-6 p-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition" onClick={() => setIsCollapsed(!isCollapsed)}>
                     <FaBars size={20} />
                 </button>
@@ -31,7 +32,7 @@ function Home() {
                     { name: "home", label: "Home", icon: <FaHome size={24} /> },
                     { name: "all-events", label: "All Events", icon: <FaCalendarCheck size={24} /> },
                     { name: "my-events", label: "My Events", icon: <FaClipboardList size={24} /> },
-                    { name: "community", label: "Community", icon: <FaUsers size={24} /> },
+                    // { name: "community", label: "Community", icon: <FaUsers size={24} /> },
                     { name: "about", label: "About Us", icon: <FaInfoCircle size={24} /> },
                     { name: "contact", label: "Contact", icon: <FaEnvelope size={24} /> },
                     { name: "profile", label: "My Profile", icon: <FaUser size={24} /> }
@@ -80,6 +81,7 @@ function Home() {
                             </motion.button>
                         </div>
                     )}
+                    {activePage === "profile" && <Profile />}
                     {activePage === "profile" && <Profile />}
                     {activePage === "all-events" && <AllEvents />}
                     {activePage === "my-events" && <MyEvents />}

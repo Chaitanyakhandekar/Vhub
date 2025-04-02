@@ -24,6 +24,8 @@ function Profile() {
         console.log("User Data:", user);
     }, [loading, user]);
 
+    
+
     useEffect(() => {
         setUpdatedUser({
             name: user?.name || "",

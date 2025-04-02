@@ -3,6 +3,7 @@ import { useAuth } from "../../context/AuthContext";
 import axios from "axios";
 import EventPost from "./EventPost"; // Event Card Component
 import { FaSearch, FaFilter } from "react-icons/fa";
+import './volunteer.css'
 
 function AllEvents() {
     const { user, logout } = useAuth();
@@ -72,11 +73,11 @@ function AllEvents() {
     }, [searchTerm, setSearchTerm]);
 
     return (
-        <div className="h-full w-full p-6 bg-[#1a202c]">
+        <div className=" h-[90vh] w-full  p-6 bg-[#1a202c]  overflow-auto ">
             {/* 🎯 Navigation Bar */}
-            <nav className="bg-[#2d3748] p-4 rounded-lg shadow-md flex items-center justify-between mb-6">
+            <nav className="bg-blur-400 bg-[#1A202C]  h-[8%] pb-5 w-[90%]   rounded-lg shadow-md fixed z-10   top-[2%] flex items-center justify-around mb-6">
                 {/* 🔍 Search Bar */}
-                <div className="flex items-center bg-[#1a202c] h-full px-4 py-2 rounded-lg w-[40%]">
+                <div className="flex items-center bg-[#1a202c] h-full border-2  border-gray-400  px-4 py-2 rounded-lg w-[40%]">
                     <FaSearch className="text-gray-400 mr-2" />
                     <input
                         type="text"
@@ -87,16 +88,16 @@ function AllEvents() {
                 </div>
 
                 {/* 🎯 Filter Dropdown */}
-                <div className="flex items-center bg-[#1a202c] px-4 py-2 rounded-lg">
+                <div className="flex items-center bg-[#1a202c] px-4 py-2 rounded-lg border-2 border-gray-400">
                     <FaFilter className="text-gray-400 mr-2" />
                     <select
-                        className="bg-transparent text-white focus:outline-none"
+                        className="bg-transparent text-white focus:outline-none "
                         onChange={(e) => setFilter(e.target.value)}
                     >
-                        <option value="All">All Events</option>
-                        <option value="Upcoming">Upcoming</option>
-                        <option value="Ongoing">Ongoing</option>
-                        <option value="Completed">Completed</option>
+                       <option className="bg-[#1A202C]" value="All">All My Events</option>
+                        <option className="bg-[#1A202C]" value="Upcoming">Upcoming</option>
+                        <option className="bg-[#1A202C]" value="Ongoing">Ongoing</option>
+                        <option className="bg-[#1A202C]" value="Completed">Completed</option>
                     </select>
                 </div>
             </nav>
@@ -128,7 +129,7 @@ function AllEvents() {
                         {events.map((event) => (
                             <div
                                 key={event.E_ID}
-                                className="bg-[#2a3b4f] rounded-lg shadow-lg p-5 transition-transform transform hover:scale-105"
+                                className="bg-[#2a3b4f] bg-gray-700 border-2 border-gray-600 rounded-lg shadow-lg p-5 transition-transform transform hover:scale-105 mt-3"
                             >
                                 <EventPost
                                     newRegistration={newRegistration}
