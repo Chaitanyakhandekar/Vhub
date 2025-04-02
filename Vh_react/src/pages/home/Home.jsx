@@ -82,7 +82,7 @@ function Home() {
                         </div>
                     )}
                     {activePage === "profile" && <Profile />}
-                    {activePage === "profile" && <Profile />}
+                    {/* {activePage === "profile" && <Profile />} */}
                     {activePage === "all-events" && <AllEvents />}
                     {activePage === "my-events" && <MyEvents />}
                     {activePage === "community" && <h2 className="text-3xl font-bold">Community Engagement</h2>}
