@@ -7,6 +7,7 @@ import { toast } from "react-toastify";
 function EventDetails() {
     const { eventId } = useParams();
     const [event, setEvent] = useState(null);
+    const [role,setRole] = useState(localStorage.getItem("userRole")) 
     const [loading, setLoading] = useState({
         event: true,
         qr: false,
@@ -49,6 +50,7 @@ function EventDetails() {
 
     const generateQrCode = async () => {
         try {
+            
             setLoading(prev => ({ ...prev, qr: true }));
             const token = localStorage.getItem("accessToken");
             const response = await axios.get(
@@ -198,11 +200,11 @@ function EventDetails() {
                                 </div>
                                 <div>
                                     <h3 className="text-sm font-medium text-gray-400">Start Date</h3>
-                                    <p className="text-white">{event?.E_Start_Date}</p>
+                                    <p className="text-white">{event?.E_Start_Date.split('T')[0]}</p>
                                 </div>
                                 <div>
                                     <h3 className="text-sm font-medium text-gray-400">End Date</h3>
-                                    <p className="text-white">{event?.E_End_Date}</p>
+                                    <p className="text-white">{event?.E_End_Date.split('T')[0]}</p>
                                 </div>
                             </div>
                         </div>
@@ -222,18 +224,20 @@ function EventDetails() {
 
                 {/* Action Buttons */}
                 <div className="bg-gray-700 p-4 md:p-6 flex flex-wrap gap-4 justify-center">
-                    <button
-                        onClick={qrCodeUrl ? () => setQrVisible(true) : generateQrCode}
-                        disabled={loading.qr}
-                        className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
-                    >
-                        {loading.qr ? (
-                            <FaSpinner className="animate-spin" />
-                        ) : (
-                            <FaQrcode />
-                        )}
-                        {qrCodeUrl ? "Show QR Code" : "Generate QR Code"}
-                    </button>
+                    {role!=="Admin" &&
+                            <button
+                            onClick={qrCodeUrl ? () => setQrVisible(true) : generateQrCode}
+                            disabled={loading.qr}
+                            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
+                        >
+                            {loading.qr ? (
+                                <FaSpinner className="animate-spin" />
+                            ) : (
+                                <FaQrcode />
+                            )}
+                            {qrCodeUrl ? "Show QR Code" : "Generate QR Code"}
+                        </button>
+                    }
 
                     <button
                         onClick={fetchTasks}
@@ -320,7 +324,7 @@ function EventDetails() {
                                                 task.status === "In Progress" ? "bg-yellow-600" :
                                                 "bg-gray-600"
                                             }`}>
-                                                {task.status}
+                                                {task.status==="Not Started"?"Incomplete":"Completed"}
                                             </span>
                                             <span className="text-gray-400">
                                                 {new Date(task.deadline).toLocaleDateString()}
