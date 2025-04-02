@@ -128,7 +128,7 @@ function AdminCreateEvent() {
     return (
         <div className="flex min-h-screen bg-gray-900 text-white">
             <Sidebar />
-            <div className="flex-1 p-6">
+            <div className="flex-1 p-6 h-[100vh] overflow-auto">
                 <h1 className="text-4xl font-bold text-center mb-6">Create New Event</h1>
                 <form 
                     onSubmit={handleSubmit} 

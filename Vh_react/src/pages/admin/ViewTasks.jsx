@@ -80,7 +80,7 @@ function ViewTasks({tasks1,searchQuery}) {
                                         <td className="p-2">{task.title}</td>
                                         <td className="p-2">{task.description}</td>
                                         <td className="p-2">{task.priority}</td>
-                                        <td className="p-2">{task.status}</td>
+                                        <td className='px-5'><input type="checkbox"/></td>
                                     </tr>
                                 ))
                             ) : (

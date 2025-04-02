@@ -183,7 +183,7 @@ function Signup() {
     }
 
     return (
-        <div className="w-full h-screen flex flex-col justify-center items-center bg-[#1a202c]">
+        <div className="w-full min-h-screen h-[100vh] overflow-auto flex flex-col justify-center items-center bg-[#1a202c]">
             <h1 className="text-4xl font-bold text-white mb-8">Create Account</h1>
             <div className="w-[35%] flex flex-col items-center text-white bg-[#2d3748] p-8 rounded-lg shadow-md space-y-6">
 

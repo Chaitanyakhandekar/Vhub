@@ -25,6 +25,7 @@ import ViewTasks from "./pages/admin/ViewTasks";
 import AboutUs from "./pages/admin/AboutUs";
 import ContactUs from "./pages/admin/ContactUs";
 import MyEvents from "./pages/volunteer/MyEvents";
+import Profile from "./pages/volunteer/Profile";
 
 // ✅ Get user role from localStorage
 const userRole = localStorage.getItem("userRole") || "Volunteer";
@@ -36,6 +37,7 @@ function App() {
         {/* Public Routes */}
         <Route path="/" element={<Home />} />
         <Route path="/home" element={<Home />} />
+        <Route path="/profile" element={<Profile />} />
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
         <Route path="/unauthorized" element={<Unauthorized />} />
