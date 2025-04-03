@@ -3,6 +3,7 @@ import { useAuth } from "../../context/AuthContext";
 import axios from "axios";
 import EventPost from "./EventPost";
 import { FaSearch, FaFilter, FaBell, FaCheckCircle } from "react-icons/fa";
+import Notifications from "./Notifications";
 
 function MyEvents() {
     const { user } = useAuth(); 
@@ -104,24 +105,7 @@ function MyEvents() {
                         <span className="absolute -top-1 -right-2 bg-red-500 text-white text-xs rounded-full px-2">{notifications.length}</span>
                     )}
                     {showNotifications && (
-                        <div className="absolute z-10 top-10 right-0 bg-gray-900 p-4 rounded-lg shadow-lg w-72 text-white border border-gray-700">
-                            <div className="flex justify-between items-center mb-2 border-b pb-2">
-                                <h3 className="font-bold text-lg">Notifications</h3>
-                                <button onClick={markAllAsRead} className="text-blue-400 text-sm hover:underline">Mark all as read</button>
-                            </div>
-                            <div className="max-h-64 overflow-y-auto">
-                                {notifications.length > 0 ? (
-                                    notifications.map((notification, index) => (
-                                        <div key={index} className="flex items-center border-b border-gray-700 p-2 last:border-0 hover:bg-gray-800 rounded-md transition duration-200">
-                                            <FaCheckCircle className="text-green-400 mr-3" />
-                                            <p className="text-sm">{notification.message}</p>
-                                        </div>
-                                    ))
-                                ) : (
-                                    <p className="text-gray-400 text-center">No new notifications</p>
-                                )}
-                            </div>
-                        </div>
+                        <Notifications notifications={notifications} markAllAsRead={markAllAsRead}/>
                     )}
                 </div>
             </nav>
@@ -140,7 +124,7 @@ function MyEvents() {
                     ) : (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
                             {myEvents.filter(event => filter === "All" || event.E_Status === filter).filter(event => event.E_Name.toLowerCase().includes(searchTerm.toLowerCase())).map(event => (
-                                <div key={event.E_ID} className="bg-[#2a3b4f] rounded-lg shadow-lg p-5 transition-transform transform hover:scale-105">
+                                <div key={event.E_ID} className="bg-[#2a3b4f] rounded-lg shadow-lg p-5 transition-transform transform ">
                                     <EventPost ename={event.E_Name} event={event} description={event.E_Description} requiredVolunteers={event.E_Required_Volunteers} totVolunteers={event.E_Volunteers?.length || 0} />
                                 </div>
                             ))}

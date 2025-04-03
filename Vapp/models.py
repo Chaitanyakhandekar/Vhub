@@ -16,8 +16,11 @@ from django.http import JsonResponse
 from django.shortcuts import render
 from django.utils import timezone
 from django.utils.timezone import make_aware, get_current_timezone
+from django.contrib.auth import get_user_model
+from datetime import time
 
 # Custom User Manager
+
 class UserManager(BaseUserManager):
     def create_user(self, email, name, password=None, **extra_fields):
         if not email:
@@ -73,8 +76,8 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     def __str__(self):
         return f"{self.name} ({self.role})"
-from django.contrib.auth import get_user_model
-User = get_user_model()  # ✅ Correct Placement
+
+User = get_user_model()  # ✅ Correct Placement  # noqa: F811
 
 # ✅ OTP Verification Model (Moved Below User Model)
 class OTPVerification(models.Model):
@@ -90,10 +93,10 @@ class Event(models.Model):
     E_ID = models.UUIDField(default=uuid.uuid4, primary_key=True, editable=False)
     E_Name = models.CharField(max_length=255)
     E_Description = models.TextField()
-    E_Start_Date = models.DateTimeField()
-    E_End_Date = models.DateTimeField()
-    E_Start_Time = models.TimeField(null=True, blank=True)  # ✅ Start Time
-    E_End_Time = models.TimeField(null=True, blank=True)    # ✅ End Time
+    E_Start_Date = models.DateField()  # Changed from DateTimeField to DateField
+    E_Start_Time = models.TimeField(default='08:00:00')  # Separate time field
+    E_End_Date = models.DateField()    # Changed from DateTimeField to DateField
+    E_End_Time = models.TimeField(default='17:00:00')    # Separate time field
     E_Location = models.TextField()
     E_Created_By = models.ForeignKey(User, on_delete=models.CASCADE, related_name="created_events", null=True, blank=True)
     E_Registered_Count = models.PositiveIntegerField(default=0)
@@ -111,12 +114,29 @@ class Event(models.Model):
         choices=[("Upcoming", "Upcoming"), ("Ongoing", "Ongoing"), ("Completed", "Completed")],
         default="Upcoming"
     )
+    def save(self, *args, **kwargs):
+        # Combine date and time before saving if needed
+        super().save(*args, **kwargs)
+
+    def get_start_datetime(self):
+        return datetime.combine(self.E_Start_Date, self.E_Start_Time)
+    
+    def get_end_datetime(self):
+        return datetime.combine(self.E_End_Date, self.E_End_Time)
+
     def has_event_ended(self):
-        """Check if the event has ended."""
-        if self.E_End_Date and self.E_End_Time:
-            event_end = timezone.make_aware(timezone.datetime.combine(self.E_End_Date, self.E_End_Time))
-            return timezone.now() >= event_end
-        return False
+        """Check if the event has ended with proper timezone handling"""
+        if not self.E_End_Date:
+            return False
+            
+        end_datetime = timezone.make_aware(
+            datetime.combine(
+                self.E_End_Date,
+                self.E_End_Time if self.E_End_Time else time(23, 59, 59)
+            )
+        )
+        return timezone.now() > end_datetime
+
 
     def __str__(self):
         return self.E_Name
@@ -138,7 +158,34 @@ class EventAnnouncement(models.Model):
 
     def __str__(self):
         return f"Announcement for {self.event.E_Name}"
+    
 
+class Badge(models.Model):
+    id = models.UUIDField(default=uuid.uuid4, primary_key=True, editable=False)
+    event = models.ForeignKey(Event, on_delete=models.CASCADE, related_name='badges')
+    name = models.CharField(max_length=100)
+    description = models.TextField()
+    icon = models.ImageField(upload_to='badge_icons/')  # For local storage
+    criteria = models.JSONField(default=dict)
+
+class UserBadge(models.Model):
+    id = models.UUIDField(default=uuid.uuid4, primary_key=True, editable=False)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='earned_badges')
+    badge = models.ForeignKey(Badge, on_delete=models.CASCADE)
+    earned_at = models.DateTimeField(auto_now_add=True)
+    metadata = models.JSONField(default=dict)
+
+    class Meta:
+        unique_together = ('user', 'badge')
+
+class EventPhoto(models.Model):
+    id = models.UUIDField(default=uuid.uuid4, primary_key=True, editable=False)
+    event = models.ForeignKey(Event, on_delete=models.CASCADE, related_name='photos')
+    photo = models.ImageField(upload_to='event_gallery/')  # For local storage
+    uploaded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+    is_approved = models.BooleanField(default=False)
+        
 class Notification(models.Model):
     N_ID = models.UUIDField(default=uuid.uuid4, primary_key=True, editable=False)
     recipient = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="notifications")
@@ -353,7 +400,3 @@ class Task(models.Model):
     def __str__(self):
         event_name = self.event.E_Name if self.event else "No Event"
         return f"{self.title} ({event_name}) - {self.status}"
-
-
-
-

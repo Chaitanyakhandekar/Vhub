@@ -26,6 +26,7 @@ import AboutUs from "./pages/admin/AboutUs";
 import ContactUs from "./pages/admin/ContactUs";
 import MyEvents from "./pages/volunteer/MyEvents";
 import Profile from "./pages/volunteer/Profile";
+import AdminProfile from "./pages/admin/AdminProfile";
 
 // ✅ Get user role from localStorage
 const userRole = localStorage.getItem("userRole") || "Volunteer";
@@ -56,6 +57,7 @@ function App() {
           <Route path="/admin/view-tasks" element={<ViewTasks />} />
           <Route path="/admin/about-us" element={<AboutUs />} />
           <Route path="/admin/contact-us" element={<ContactUs />} />
+          <Route path="/admin/profile" element={<AdminProfile />} />
         </Route>
 
         {/* Protected Routes for Volunteers */}

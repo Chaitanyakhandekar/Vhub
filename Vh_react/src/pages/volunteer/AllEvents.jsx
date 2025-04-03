@@ -129,7 +129,7 @@ function AllEvents() {
                         {events.map((event) => (
                             <div
                                 key={event.E_ID}
-                                className="bg-[#2a3b4f] bg-gray-700 border-2 border-gray-600 rounded-lg shadow-lg p-5 transition-transform transform hover:scale-105 mt-3"
+                                className="bg-[#2a3b4f] bg-gray-700 border-2 border-gray-600 rounded-lg shadow-lg p-5 transition-transform transform  mt-3"
                             >
                                 <EventPost
                                     newRegistration={newRegistration}

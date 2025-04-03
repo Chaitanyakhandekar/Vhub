@@ -37,17 +37,30 @@ class EventAdmin(admin.ModelAdmin):
 
     fieldsets = (
         ("Event Details", {"fields": ("E_ID", "E_Name", "E_Description", "E_Location", "E_Status")}),
-        ("Schedule", {"fields": ("E_Start_Date", "E_End_Date")}),
+        ("Schedule", {"fields": (
+            ("E_Start_Date", "E_Start_Time"),
+            ("E_End_Date", "E_End_Time")
+        )}),
         ("Media", {"fields": ("E_Photo",)}),
     )
-
-    readonly_fields = ("E_ID", "E_Created_By")
 
     def save_model(self, request, obj, form, change):
         """Automatically assign the creator of the event."""
         if not obj.E_Created_By:
-            obj.E_Created_By = request.user  
+            obj.E_Created_By = request.user
+        
+        # Ensure times are set
+        if not obj.E_Start_Time:
+            obj.E_Start_Time = '08:00:00'
+        if not obj.E_End_Time:
+            obj.E_End_Time = '17:00:00'
+            
         obj.save()
+
+        
+    
+    readonly_fields = ("E_ID", "E_Created_By")
+    
 
     # ✅ Attendance Section
     def total_volunteers(self, obj):

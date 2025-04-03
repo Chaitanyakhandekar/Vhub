@@ -4,11 +4,11 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework import status
 from django.contrib.auth import authenticate, get_user_model
 from rest_framework_simplejwt.tokens import RefreshToken
-from .models import User, Event, Task, Attendance,Registration,SampleTask,EventAnnouncement,QRCode,EventCertificate
+from .models import User, Event, Task, Attendance,Registration,SampleTask,EventAnnouncement,QRCode,EventCertificate, EventPhoto, Badge, UserBadge
 from .serializers import (
     UserSerializer, SignupSerializer, LoginSerializer,
     EventSerializer, TaskSerializer, AttendanceSerializer,RegistrationSerializer,EventAnnouncementSerializer
-    ,SampleTaskSerializer
+    ,SampleTaskSerializer,EventPhotoSerializer, BadgeSerializer
 )
 from django.contrib.auth.hashers import make_password
 import random
@@ -47,21 +47,29 @@ from django.http import HttpRequest
 import textwrap 
 from .models import Event, EventAnnouncement, Notification
 from .serializers import EventAnnouncementSerializer, NotificationSerializer
+import logging
+from django.db import transaction
+from django.utils import timezone
+from django.core.files.storage import default_storage
+from datetime import time
+from rest_framework import generics, status, permissions
+from django.db.models.signals import post_save
+from django.dispatch import receiver
 
 def get_fonts():
     """ Returns the correct fonts based on OS (Windows or Linux) """
     
     # Font selection based on OS
     if platform.system() == "Windows":
-        font_path_bold = "C:/Windows/Fonts/arialbd.ttf"  # Windows path (Bold Arial)
-        font_path_regular = "C:/Windows/Fonts/Arial.ttf"  # Windows path (Regular Arial)
+        FONT_PATH_BOLD = "C:/Windows/Fonts/arialbd.ttf"  # Windows path (Bold Arial)
+        FONT_PATH_REGULAR = "C:/Windows/Fonts/Arial.ttf"  # Windows path (Regular Arial)
     else:
-        font_path_bold = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"  # Linux (Render) path (Bold)
-        font_path_regular = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"  # Linux (Render) path (Regular)
+        FONT_PATH_BOLD = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"  # Linux (Render) path (Bold)
+        FONT_PATH_REGULAR = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"  # Linux (Render) path (Regular)
 
     try:
-        name_font = ImageFont.truetype(font_path_bold, 50)
-        details_font = ImageFont.truetype(font_path_regular, 30)
+        name_font = ImageFont.truetype(FONT_PATH_BOLD, 50)
+        details_font = ImageFont.truetype(FONT_PATH_REGULAR, 30)
     except OSError:
         print("❌ Font not found! Using default PIL font.")
         name_font = ImageFont.load_default()
@@ -69,11 +77,17 @@ def get_fonts():
 
     return name_font, details_font  # Return both fonts
 
+# FONT_PATH_BOLD = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+# FONT_PATH_REGULAR = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+# font_path_bold = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+# font_path_regular = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
 
 
+# name_font = ImageFont.truetype(font_path_bold, 50)
+# details_font = ImageFont.truetype(font_path_regular, 30)
 
-
-User = get_user_model()
+logger = logging.getLogger(__name__)
+User = get_user_model()  # noqa: F811
 
 ### ------------------- AUTHENTICATION VIEWS ------------------- ###
 
@@ -397,6 +411,29 @@ def check_registration_status(request, E_ID):
 
     return Response({"registered": is_registered}, status=status.HTTP_200_OK)
 
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def check_registration(request, E_ID):
+    try:
+        event = get_object_or_404(Event, E_ID=E_ID)
+        is_registered = Registration.objects.filter(
+            event=event,
+            volunteer=request.user
+        ).exists()
+        
+        return Response({
+            "registered": is_registered,
+            "event_id": E_ID,
+            "user_id": request.user.id
+        }, status=200)
+        
+    except Exception as e:
+        return Response({
+            "error": str(e)
+        }, status=400)
+
+
 # Leave Event
 class LeaveEventView(APIView):
     def post(self, request, E_ID):
@@ -434,31 +471,53 @@ def get_event_by_id(request, E_ID):
 def create_event(request):
     serializer = EventSerializer(data=request.data)
     if serializer.is_valid():
+        # Set default times if not provided
+        if 'E_Start_Time' not in serializer.validated_data:
+            serializer.validated_data['E_Start_Time'] = '08:00:00'
+        if 'E_End_Time' not in serializer.validated_data:
+            serializer.validated_data['E_End_Time'] = '17:00:00'
+            
         serializer.save(E_Created_By=request.user)
         return Response({"message": "Event created successfully!"}, status=status.HTTP_201_CREATED)
-
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
 
 @api_view(['PUT'])
 @permission_classes([IsAuthenticated])
-@parser_classes([MultiPartParser, FormParser])  # ✅ Allow file uploads
+@parser_classes([MultiPartParser, FormParser])
 def update_event(request, E_ID):
-    """
-    Updates an existing event.
-    Supports partial updates (PATCH) and file uploads.
-    """
     try:
-        event = Event.objects.get(E_ID=E_ID)  # ✅ Fetch event by E_ID
+        event = Event.objects.get(E_ID=E_ID)
     except Event.DoesNotExist:
         return Response({"error": "Event not found!"}, status=status.HTTP_404_NOT_FOUND)
 
+    # Handle coordinators
+    if 'E_Coordinators' in request.data:
+        try:
+            coordinators = request.data.getlist('E_Coordinators')
+            event.E_Coordinators.clear()
+            for coordinator_id in coordinators:
+                user = User.objects.get(id=coordinator_id)
+                event.E_Coordinators.add(user)
+        except Exception as e:
+            return Response({"error": f"Invalid coordinator data: {str(e)}"}, status=400)
+
+    # Handle super volunteers
+    if 'E_Super_Volunteers' in request.data:
+        try:
+            super_volunteers = request.data.getlist('E_Super_Volunteers')
+            event.E_Super_Volunteers.clear()
+            for volunteer_id in super_volunteers:
+                user = User.objects.get(id=volunteer_id)
+                event.E_Super_Volunteers.add(user)
+        except Exception as e:
+            return Response({"error": f"Invalid super volunteer data: {str(e)}"}, status=400)
+
+    # Handle other fields
     serializer = EventSerializer(event, data=request.data, partial=True, context={"request": request})
 
     if serializer.is_valid():
         serializer.save()
         return Response({"message": "Event updated successfully!"}, status=status.HTTP_200_OK)
-
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 # Delete Event
@@ -566,8 +625,91 @@ def serve_image(request, path):
     else:
         raise Http404("Image not found")
     
+class EventBadgesAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request, E_ID):
+        badges = Badge.objects.filter(event_id=E_ID)
+        serializer = BadgeSerializer(badges, many=True, context={'request': request})
+        return Response({'badges': serializer.data}, status=status.HTTP_200_OK)
 
+class AwardBadgeAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request, E_ID, badge_id):
+        try:
+            badge = Badge.objects.get(id=badge_id, event_id=E_ID)
+            user = request.user
+            
+            if UserBadge.objects.filter(user=user, badge=badge).exists():
+                return Response(
+                    {'message': 'User already has this badge'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            UserBadge.objects.create(user=user, badge=badge)
+            return Response(
+                {'message': 'Badge awarded successfully'},
+                status=status.HTTP_201_CREATED
+            )
+        except Badge.DoesNotExist:
+            return Response(
+                {'message': 'Badge not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
 
+class EventGalleryAPIView(APIView):
+    parser_classes = [MultiPartParser]
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request, E_ID):
+        photos = EventPhoto.objects.filter(event_id=E_ID, is_approved=True)
+        serializer = EventPhotoSerializer(photos, many=True, context={'request': request})
+        return Response({'photos': serializer.data}, status=status.HTTP_200_OK)
+    
+    def post(self, request, E_ID):
+        try:
+            event = Event.objects.get(E_ID=E_ID)
+            photo = request.FILES.get('photo')
+            
+            if not photo:
+                return Response(
+                    {'error': 'No photo provided'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # For local storage
+            photo_instance = EventPhoto.objects.create(
+                event=event,
+                photo=photo,
+                uploaded_by=request.user,
+                is_approved=request.user.role in ['Admin', 'Coordinator']
+            )
+            
+            return Response(
+                {'message': 'Photo uploaded successfully'},
+                status=status.HTTP_201_CREATED
+            )
+        except Event.DoesNotExist:
+            return Response(
+                {'error': 'Event not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+            
+@receiver(post_save, sender=Attendance)
+def check_badge_conditions(sender, instance, created, **kwargs):
+    if created:
+        user = instance.user
+        event = instance.event
+        
+        # Example: Award participation badge
+        participation_badge = Badge.objects.filter(
+            event=event,
+            criteria__type='participation'
+        ).first()
+        
+        if participation_badge and not UserBadge.objects.filter(user=user, badge=participation_badge).exists():
+            UserBadge.objects.create(user=user, badge=participation_badge)
 
 
 
@@ -978,112 +1120,154 @@ def contact_us(request):
 @permission_classes([IsAuthenticated])
 def check_certificate(request, E_ID):
     try:
-        print(f"🔍 Checking certificate for event ID: {E_ID}")
-
+        logger.info(f"Checking certificate for event: {E_ID}")
         user = request.user
         event = get_object_or_404(Event, E_ID=E_ID)
-        print(f"✅ Found Event: {event.E_Name} (ID: {event.E_ID})")
 
-        # ✅ Ensure the event has ended before allowing access
-        if event.E_Status != "Completed":
-            print("❌ Event is not completed. Certificate cannot be accessed.")
-            return Response({"error": "Certificates are only available after the event is completed."}, status=403)
+        # 1️⃣ Check if event has ended with proper timezone-aware comparison
+        if not event.has_event_ended():
+            current_time = timezone.now()
+            end_datetime = timezone.make_aware(
+                datetime.combine(
+                    event.E_End_Date,
+                    event.E_End_Time if event.E_End_Time else time(23, 59, 59)
+                )
+            )
+            
+            logger.warning(
+                f"Event {E_ID} not completed. Current: {current_time}, End: {end_datetime}"
+            )
+            return Response(
+                {
+                    "error": "Certificates are only available after the event ends.",
+                    "event_end_time": end_datetime.isoformat(),
+                    "current_time": current_time.isoformat()
+                },
+                status=403
+            )
 
-        # ✅ Ensure user is registered for the event
-        is_registered = Registration.objects.filter(event=event, volunteer=user).exists()
-        if not is_registered:
-            print("❌ User is not registered for this event.")
-            return Response({"error": "You must be registered for this event to access the certificate."}, status=403)
+        # 2️⃣ Check if user is registered
+        if not Registration.objects.filter(event=event, volunteer=user).exists():
+            logger.warning(f"User {user.id} is not registered for event {E_ID}.")
+            return Response(
+                {"error": "You must be registered for this event."},
+                status=403
+            )
 
-        # ✅ Check if a certificate entry exists
+        # 3️⃣ Check attendance (only if event requires it)
+        if getattr(event, 'attendance_required', False):
+            if not Attendance.objects.filter(event=event, volunteer=user, attended=True).exists():
+                logger.warning(f"User {user.id} did not attend event {E_ID}.")
+                return Response(
+                    {"error": "You did not attend this event."},
+                    status=403
+                )
+
+        # 4️⃣ Check if certificate exists
         certificate = EventCertificate.objects.filter(event=event, user=user).first()
         if not certificate:
-            print("❌ Certificate entry not found in the database.")
-            return Response({"error": "Certificate not found."}, status=404)
+            logger.info(f"No certificate found for user {user.id}, eligible to generate")
+            return Response(
+                {
+                    "can_generate": True,
+                    "message": "You are eligible to generate a certificate"
+                },
+                status=200
+            )
 
-        # ✅ Validate that the certificate file exists
-        if not certificate.file or not certificate.file.path or not os.path.exists(certificate.file.path):
-            print(f"❌ Certificate file missing at: {certificate.file.path if certificate.file else 'Unknown Path'}")
-            return Response({"error": "Certificate file is missing."}, status=404)
+        # 5️⃣ Verify the file exists
+        if not certificate.file:
+            logger.error(f"Certificate file missing in DB for user {user.id}.")
+            return Response(
+                {"error": "Certificate file is missing from storage."},
+                status=404
+            )
 
-        # ✅ Return the certificate URL
+        try:
+            if not default_storage.exists(certificate.file.name):
+                logger.error(f"Certificate file not found in storage: {certificate.file.name}")
+                return Response(
+                    {"error": "Certificate file not found in storage."},
+                    status=404
+                )
+        except Exception as storage_error:
+            logger.error(f"Storage check error: {str(storage_error)}")
+            return Response(
+                {"error": "Error verifying certificate file."},
+                status=500
+            )
+
+        # 6️⃣ Return the URL
         certificate_url = request.build_absolute_uri(certificate.file.url)
-        print(f"✅ Certificate found at: {certificate_url}")
-
-        return Response({"certificate_url": certificate_url}, status=200)
+        logger.info(f"Certificate accessible at: {certificate_url}")
+        return Response(
+            {
+                "certificate_url": certificate_url,
+                "exists": True,
+                
+            },
+            status=200
+        )
 
     except Exception as e:
-        print(f"❌ Unexpected Error in `check_certificate`: {e}")
-        return Response({"error": "Internal Server Error"}, status=500)
-
-
+        logger.error(f"CRITICAL ERROR in check_certificate: {str(e)}", exc_info=True)
+        return Response(
+            {
+                "error": "Internal server error while checking certificate.",
+                "details": str(e)
+            },
+            status=500
+        )
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def download_certificate(request, E_ID):
     try:
         user = request.user
         event = get_object_or_404(Event, E_ID=E_ID)
-        print(f"📥 Download request for certificate of event ID: {E_ID} by {user.email}")
-
-        # ✅ Ensure the event has ended
-        if event.E_Status != "Completed":
-            print("❌ Event is not completed. Cannot download certificate.")
-            return Response({"error": "Certificate is only available after the event ends."}, status=403)
-
-        # ✅ Ensure user is registered for the event
-        is_registered = Registration.objects.filter(event=event, volunteer=user).exists()
-        if not is_registered:
-            print("❌ User is not registered for this event.")
-            return Response({"error": "You must be registered for this event to download the certificate."}, status=403)
-
-        # ✅ Fetch the certificate (Do NOT create a new one here!)
+        
         certificate = EventCertificate.objects.filter(event=event, user=user).first()
+        if not certificate:
+            return Response({"error": "Certificate not found"}, status=404)
 
-        # ✅ Ensure the certificate exists
-        if not certificate or not getattr(certificate.file, "path", None) or not os.path.exists(certificate.file.path):
-            print(f"❌ Certificate file does not exist at path: {certificate.file.path if certificate else 'Unknown Path'}")
-            return Response({"error": "Certificate file is missing."}, status=404)
+        if not certificate.file:
+            return Response({"error": "Certificate file missing"}, status=404)
 
-        # ✅ Return the correct certificate URL
+        # Generate proper URL
         certificate_url = request.build_absolute_uri(certificate.file.url)
-        print(f"✅ Certificate available for download: {certificate_url}")
-
-        return Response({"certificate_url": certificate_url}, status=200)
+        return Response({
+            "certificate_url": certificate_url,
+            "filename": os.path.basename(certificate.file.name)
+        }, status=200)
 
     except Exception as e:
-        print(f"❌ Unexpected Error in `download_certificate`: {e}")
-        return Response({"error": "Internal Server Error"}, status=500)
+        print(f"Download error: {str(e)}")
+        return Response({"error": "Internal server error"}, status=500)
 
 
-@api_view(["GET"])
-@permission_classes([IsAuthenticated])
-def convert_image_to_pdf(image_path, pdf_path):
-    """Converts an image to a PDF template for certificate generation."""
-    if not os.path.exists(pdf_path):  # Convert only if template doesn't exist
-        image = Image.open(image_path)
-        pdf_canvas = canvas.Canvas(pdf_path, pagesize=landscape(letter))
-        pdf_canvas.drawImage(image_path, 0, 0, width=landscape(letter)[0], height=landscape(letter)[1])
-        pdf_canvas.save()
-        print(f"✅ PDF template created: {pdf_path}")
-    else:
-        print(f"ℹ️ Using existing template: {pdf_path}")
+
+
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def generate_certificate(request, E_ID):
     try:
-        # Debug: Check request type
-        print(f"Request object type: {type(request)}")
-
-        # Get the authenticated user
         user = request.user
-
-        # Fetch the event or return 404 if not found
+        print(f"🧑 User attempting generation: {user.email}")
+        
         event = get_object_or_404(Event, E_ID=E_ID)
-        print(f"📡 Generating certificate for event: {event.E_Name} (ID: {E_ID}) for user: {user.email}")
-
-        # Ensure the event is completed
+        print(f"🎪 Event: {event.E_Name} (Status: {event.E_Status})")
+        
+        # Debug registration status
+        reg_exists = Registration.objects.filter(event=event, volunteer=user).exists()
+        print(f"📝 Registration exists: {reg_exists}")
+        
         if event.E_Status != "Completed":
-            return Response({"error": "Certificates are only available after the event ends."}, status=403)
+            return Response({
+                "error": "Certificates are only available after the event ends.",
+                "debug": {
+                    "event_status": event.E_Status,
+                    "required_status": "Completed"
+                }
+            }, status=403)
 
         # Check if the user is registered for the event
         if not Registration.objects.filter(event=event, volunteer=user).exists():
@@ -1134,6 +1318,14 @@ def generate_certificate(request, E_ID):
 def generate_certificate_from_pdf(template_pdf: str, output_pdf: str, volunteer_name: str, event_name: str, issued_date: str):
     """Generates a certificate with the volunteer's name, event name, and issued date."""
     try:
+        try:
+            pdfmetrics.registerFont(TTFont("DejaVuSans-Bold", FONT_PATH_BOLD))
+            pdfmetrics.registerFont(TTFont("DejaVuSans", FONT_PATH_REGULAR))
+        except Exception as font_error:
+            print(f"⚠️ Font registration error: {font_error}")
+            # Fallback to standard fonts if custom fonts fail
+            pdfmetrics.registerFont(TTFont("Helvetica-Bold", "Helvetica-Bold"))
+            pdfmetrics.registerFont(TTFont("Helvetica", "Helvetica"))
         # Debug: Check input arguments
         print(f"Template PDF: {template_pdf}")
         print(f"Output PDF: {output_pdf}")
@@ -1152,18 +1344,25 @@ def generate_certificate_from_pdf(template_pdf: str, output_pdf: str, volunteer_
         packet = BytesIO()
         can = canvas.Canvas(packet, pagesize=letter)
 
+        # Register a custom font (ensure the font file exists)
+        # font_path = os.path.join(settings.MEDIA_ROOT, "font", "PinyonScript-Regular.ttf")
+        # if not os.path.exists(font_path):
+        #     font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+
+        # pdfmetrics.registerFont(TTFont("CustomFont", font_path))
+
         # Set font and text positions for the volunteer's name (centered)
-        can.setFont("Helvetica-Bold", 60)  # Use default Helvetica-Bold font
-        can.setFillColorRGB(0, 0, 0)  # Black color
-        text_width = can.stringWidth(volunteer_name, "Helvetica-Bold", 60)
-        can.drawString(280, 320, volunteer_name)  # Adjust position as needed
+        can.setFont("DejaVuSans-Bold", 60)
+        text_width = can.stringWidth(volunteer_name, "DejaVuSans-Bold", 60)
+        can.drawString(280, 320, volunteer_name)
+
 
         # Add the new appreciation message
         appreciation_text = (
             f"In gratitude for their valuable contributions and dedication as a volunteer at {event_name} on {issued_date}. "
             "We hope to see them again at future events and appreciate their continued support."
         )
-        can.setFont("Helvetica", 16)
+        can.setFont("DejaVuSans", 16)
         can.setFillColorRGB(0, 0, 0)  # Black color
 
         # Wrap the appreciation text
@@ -1185,25 +1384,25 @@ def generate_certificate_from_pdf(template_pdf: str, output_pdf: str, volunteer_
                 # Split the line into parts before and after the event name
                 parts = line.split(event_name)
                 # Draw the part before the event name
-                can.setFont("Helvetica", 16)
+                can.setFont("DejaVuSans", 16)
                 can.drawString(appreciation_x, appreciation_y - (i * appreciation_line_height), parts[0])
                 # Calculate the x-coordinate for the event name
                 event_name_x = appreciation_x + can.stringWidth(parts[0], "Helvetica", 16)
                 # Draw the event name in bold
-                can.setFont("Helvetica-Bold", 16)
+                can.setFont("DejaVuSans-Bold", 16)
                 can.drawString(event_name_x, appreciation_y - (i * appreciation_line_height), event_name)
                 # Calculate the x-coordinate for the part after the event name
                 remaining_text_x = event_name_x + can.stringWidth(event_name, "Helvetica-Bold", 16)
                 # Draw the part after the event name
-                can.setFont("Helvetica", 16)
+                can.setFont("DejaVuSans", 16)
                 can.drawString(remaining_text_x, appreciation_y - (i * appreciation_line_height), parts[1])
             else:
                 # Draw the line as normal
-                can.setFont("Helvetica", 16)
+                can.setFont("DejaVuSans", 16)
                 can.drawString(appreciation_x, appreciation_y - (i * appreciation_line_height), line)
 
         # Set font and text positions for the issued date
-        can.setFont("Helvetica", 18)
+        can.setFont("DejaVuSans", 18)
         can.setFillColorRGB(0, 0, 0)  # Black color
         can.drawString(85, 90, f"Issued Date: {issued_date}")  # Below the event name
 
@@ -1227,9 +1426,9 @@ def generate_certificate_from_pdf(template_pdf: str, output_pdf: str, volunteer_
         # Log the error and re-raise
         print(f"❌ Error in generate_certificate_from_pdf: {e}")
         raise
-
-
-def convert_image_to_pdf(image_path: str, pdf_path: str):
+    
+    
+def convert_image_to_pdf(image_path: str, pdf_path: str):  # noqa: F811
     """Converts an image to a PDF file."""
     from reportlab.lib.pagesizes import letter
     from reportlab.pdfgen import canvas
@@ -1272,6 +1471,7 @@ def post_announcement(request, event_id):
 def get_notifications(request):
     """Fetch unread notifications for the logged-in volunteer."""
     notifications = Notification.objects.filter(recipient=request.user, is_read=False).order_by("-created_at")
+
     serializer = NotificationSerializer(notifications, many=True)
     return Response(serializer.data, status=status.HTTP_200_OK)
 

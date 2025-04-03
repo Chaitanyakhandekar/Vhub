@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth import authenticate
-from .models import User, Event, Task, Attendance, Registration,EventAnnouncement,SampleTask,Notification
+from .models import User, Event, Task, Attendance, Registration,EventAnnouncement,SampleTask,Notification,EventPhoto, Badge, UserBadge
+
 
 
 # ✅ User Serializer
@@ -79,12 +80,17 @@ class EventSerializer(serializers.ModelSerializer):
     E_Photo = serializers.ImageField()  # ✅ Use SerializerMethodField
     announcements = EventAnnouncementSerializer(many=True, read_only=True)
     sample_tasks = SampleTaskSerializer(many=True, read_only=True)
+    
+    E_Start_Time = serializers.TimeField(format='%H:%M', required=False)
+    E_End_Time = serializers.TimeField(format='%H:%M', required=False)
+
 
     class Meta:
         model = Event
         fields = '__all__'
         read_only_fields = ['E_ID']
-
+        
+        
     def get_E_Photo(self, obj):
         request = self.context.get('request')  # ✅ Get request context
         if obj.E_Photo:
@@ -92,6 +98,63 @@ class EventSerializer(serializers.ModelSerializer):
                 return request.build_absolute_uri(obj.E_Photo.url)  # ✅ Full URL
             return obj.E_Photo.url  # ✅ Return relative URL if no request
         return None  # ✅ Handle case where no photo is uploaded
+    def validate(self, data):
+        # Add validation for time consistency
+        if 'E_Start_Date' in data and 'E_End_Date' in data:
+            if data['E_Start_Date'] > data['E_End_Date']:
+                raise serializers.ValidationError("End date must be after start date")
+            
+            if data['E_Start_Date'] == data['E_End_Date']:
+                if 'E_Start_Time' in data and 'E_End_Time' in data:
+                    if data['E_Start_Time'] >= data['E_End_Time']:
+                        raise serializers.ValidationError("End time must be after start time for same-day events")
+        
+        return data
+
+
+class EventPhotoSerializer(serializers.ModelSerializer):
+    url = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = EventPhoto
+        fields = ['id', 'url', 'uploaded_at']
+    
+    def get_url(self, obj):
+        if obj.photo:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.photo.url)
+            return obj.photo.url
+        return None
+
+class BadgeSerializer(serializers.ModelSerializer):
+    earned = serializers.SerializerMethodField()
+    earned_date = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Badge
+        fields = ['id', 'name', 'description', 'icon', 'earned', 'earned_date']
+    
+    def get_earned(self, obj):
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            return obj.userbadge_set.filter(user=request.user).exists()
+        return False
+    
+    def get_earned_date(self, obj):
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            user_badge = obj.userbadge_set.filter(user=request.user).first()
+            return user_badge.earned_at if user_badge else None
+        return None
+
+class UserBadgeSerializer(serializers.ModelSerializer):
+    badge = BadgeSerializer()
+    
+    class Meta:
+        model = UserBadge
+        fields = ['badge', 'earned_at', 'metadata']
+        
 
 class EventAnnouncementSerializer(serializers.ModelSerializer):
     class Meta:

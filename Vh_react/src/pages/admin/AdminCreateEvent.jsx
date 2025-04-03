@@ -5,6 +5,7 @@ import Sidebar from "./Sidebar";
 
 function AdminCreateEvent() {
     const navigate = useNavigate();
+    const [status,setStatus] = useState("Upcoming1")
     const [eventData, setEventData] = useState({
         E_Name: "",
         E_Description: "",
@@ -71,35 +72,47 @@ function AdminCreateEvent() {
         return errors;
     };
 
+
+    const getEventStatus = (startDate, startTime, endDate, endTime) => {
+        const now = new Date(); // Current date & time
+        const start = new Date(`${startDate}T${startTime}`);
+        const end = new Date(`${endDate}T${endTime}`);
+    
+        if (now < start) return "Upcoming";  // Event has not started yet
+        if (now >= start && now <= end) return "Ongoing";  // Event is happening now
+        return "Completed";  // Event has ended
+    };
+    
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         setErrorMessage("");
         setIsSubmitting(true);
-
+    
         const validationErrors = validateForm();
         if (validationErrors.length > 0) {
             setErrorMessage(validationErrors.join(". ") + ".");
             setIsSubmitting(false);
             return;
         }
-
+    
+        // ✅ Compute `E_Status` before sending
+        const eventStatus = getEventStatus(
+            eventData.E_Start_Date, 
+            eventData.E_Start_Time, 
+            eventData.E_End_Date, 
+            eventData.E_End_Time
+        );
+    
         const formData = new FormData();
         Object.keys(eventData).forEach((key) => {
             if (eventData[key] !== null) {
-                if(key==='E_Start_Time' || key==='E_End_Time'){
-                   formData.append(key,eventData[key]+':00')
-                   console.log(eventData[key]+':00') 
-                }else{
-                    formData.append(key, eventData[key]);
-                }
+                formData.append(key, eventData[key]);
             }
         });
-
-        console.log("FormData Contents:");
-        for (let pair of formData.entries()) {
-            console.log(pair[0] + ": " + pair[1]);
-        }
-        
+    
+        formData.append("E_Status", eventStatus);  // ✅ Add calculated status
+    
         try {
             const token = localStorage.getItem("accessToken");
             const response = await axios.post(
@@ -112,8 +125,7 @@ function AdminCreateEvent() {
                     },
                 }
             );
-            console.log(response)
-
+    
             if (response.status === 201) {
                 navigate("/admin/events");
             }
@@ -124,6 +136,7 @@ function AdminCreateEvent() {
             setIsSubmitting(false);
         }
     };
+    
 
     return (
         <div className="flex min-h-screen bg-gray-900 text-white">

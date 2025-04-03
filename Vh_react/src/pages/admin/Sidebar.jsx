@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { FaHome, FaCalendarCheck, FaTasks, FaUsers, FaBell, FaBullhorn, FaSignOutAlt, FaEnvelope ,FaInfoCircle,FaAddressCard, FaAngleDoubleLeft, FaAngleDoubleRight } from "react-icons/fa";
+import { FaHome, FaCalendarCheck, FaTasks, FaUsers, FaBell, FaBullhorn, FaSignOutAlt, FaEnvelope ,FaInfoCircle,FaAddressCard, FaAngleDoubleLeft, FaAngleDoubleRight,FaUser } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { NavLink } from "react-router-dom";
@@ -10,11 +10,12 @@ function Sidebar() {
     const [isCollapsed, setIsCollapsed] = useState(false); // ✅ Sidebar toggle
 
     return (
-        <div className={`min-h-screen bg-[#1a202c] h-[100vh] text-white flex flex-col justify-between p-6 shadow-lg transition-all ${isCollapsed ? "w-20" : "w-64"}`}>
+        <div className={`min-h-screen bg-[#1a202c] h-[100vh] text-white flex flex-col justify-between  p-6 shadow-lg transition-all ${isCollapsed ? "w-20" : "w-64"}`}>
             {/* ✅ Toggle Sidebar Button */}
+            <div className="w-full">
             <button 
                 onClick={() => setIsCollapsed(!isCollapsed)} 
-                className="text-white bg-gray-700 hover:bg-gray-600 p-2 rounded-md mb-4 flex items-center justify-center transition-all">
+                className="text-white w-full bg-gray-700 hover:bg-gray-600 p-2 rounded-md mb-4 flex items-center justify-center transition-all">
                 {isCollapsed ? <FaAngleDoubleRight size={20} /> : <FaAngleDoubleLeft size={20} />}
             </button>
 
@@ -30,9 +31,9 @@ function Sidebar() {
                 <div className="flex items-center space-x-3 text-lg hover:text-purple-400 cursor-pointer" onClick={() => navigate("/admin/volunteers")}> 
                     <FaUsers size={24} /> {!isCollapsed && <span>Volunteers</span>}
                 </div>
-                <div className="flex items-center space-x-3 text-lg hover:text-orange-400 cursor-pointer" onClick={() => navigate("/admin-dashboard")}> 
+                {/* <div className="flex items-center space-x-3 text-lg hover:text-orange-400 cursor-pointer" onClick={() => navigate("/admin-dashboard")}> 
                     <FaBell size={24} /> {!isCollapsed && <span>Notification</span>}
-                </div>
+                </div> */}
                
                 <div className="flex items-center space-x-3 text-lg hover:text-yellow-400 cursor-pointer"> 
                 <NavLink to="/admin/contact-us" className="sidebar-link flex items-center">
@@ -45,6 +46,12 @@ function Sidebar() {
                     <FaInfoCircle className="mr-2" />{!isCollapsed && <span>About us</span>}
                 </NavLink>
                 </div>
+                <div className="flex items-center space-x-3 text-lg hover:text-yellow-400 cursor-pointer"> 
+                <NavLink to="/admin/profile" className="sidebar-link flex items-center">
+                    <FaUser className="mr-2" />{!isCollapsed && <span>Profile</span>}
+                </NavLink>
+                </div>
+            </div>
             </div>
 
             {/* ✅ Logout Button */}
